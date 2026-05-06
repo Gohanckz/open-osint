@@ -2,7 +2,7 @@ import type { NextConfig } from 'next';
 
 const config: NextConfig = {
   reactStrictMode: true,
-  typedRoutes: true,
+  typedRoutes: false,
   // Standalone output: Docker copies only what's needed (smaller images)
   output: 'standalone',
   // En el monorepo, le decimos al build que el "tracing root" es la raíz del repo

@@ -129,7 +129,7 @@ export function UserMenu({ user }: UserMenuProps) {
               return (
                 <DropdownMenu.Item
                   key={l}
-                  onSelect={(e) => {
+                  onSelect={(e: Event) => {
                     e.preventDefault();
                     if (!active) setLocale(l);
                   }}

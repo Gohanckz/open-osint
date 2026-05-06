@@ -1,9 +1,9 @@
 import { Queue, Worker, type WorkerOptions } from 'bullmq';
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
-export const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+export const connection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
 
 export const QUEUES = {
   ocr: 'hilo.ocr',

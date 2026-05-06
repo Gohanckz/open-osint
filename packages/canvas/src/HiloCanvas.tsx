@@ -6,6 +6,7 @@ import {
   Controls,
   MiniMap,
   ReactFlowProvider,
+  PanOnScrollMode,
   type Node,
   type Edge,
   type NodeChange,
@@ -67,7 +68,7 @@ function CanvasInner(props: HiloCanvasProps) {
       nodesConnectable={!readOnly}
       elementsSelectable
       panOnScroll
-      panOnScrollMode="free"
+      panOnScrollMode={PanOnScrollMode.Free}
       zoomOnPinch
       minZoom={0.15}
       maxZoom={2.5}

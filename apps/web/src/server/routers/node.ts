@@ -74,7 +74,11 @@ export const nodeRouter = router({
     .input(CreateNodeSchema)
     .mutation(async ({ ctx, input }) => {
       const node = await prisma.node.create({
-        data: { ...input, createdById: ctx.userId },
+        data: {
+          ...input,
+          fields: input.fields as Prisma.InputJsonValue,
+          createdById: ctx.userId,
+        },
       });
       await prisma.board.update({
         where: { id: input.boardId },
@@ -112,7 +116,10 @@ export const nodeRouter = router({
           data: {
             nodeId: input.id,
             authorId: ctx.userId,
-            diff: diffPatch(before as Record<string, unknown>, after as Record<string, unknown>),
+            diff: diffPatch(
+              before as Record<string, unknown>,
+              after as Record<string, unknown>,
+            ) as unknown as Prisma.InputJsonValue,
           },
         });
       }

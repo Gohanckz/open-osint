@@ -119,7 +119,7 @@ export default async function RankingPage() {
             <SectionHeader icon={<Crown size={14} />} title="Podio" subtitle="Los 3 top de la comunidad" />
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
               {top3.map((u, i) => (
-                <PodiumCard key={u.id} user={u} position={i + 1} />
+                <PodiumCard key={u.id} user={u} position={(i + 1) as 1 | 2 | 3} />
               ))}
             </div>
           </section>

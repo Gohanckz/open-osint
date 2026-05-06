@@ -39,8 +39,7 @@ export const aiWorker = makeWorker<AiSuggestionJob>(QUEUES.ai, async ({ data }) 
   });
 
   const text = message.content
-    .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-    .map((c) => c.text)
+    .map((c) => ('text' in c ? c.text : ''))
     .join('');
 
   let parsed: Array<{ kind: string; payload: unknown; confidence: number }> = [];

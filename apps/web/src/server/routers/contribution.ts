@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, boardProcedure } from '../trpc.js';
 import { prisma } from '@hilo/db';
+import type { Prisma } from '@hilo/db';
 import { CreateContributionSchema, ipHash, scanPii, piiSeverity } from '@hilo/shared';
 import { rateLimit } from '../redis.js';
 import { RATE_LIMITS, ANTI_DOXXING } from '@hilo/config';
@@ -87,6 +88,7 @@ export const contributionRouter = router({
               boardId: input.boardId,
               targetKey,
               contributorKey: fp,
+              piiType: hits[0]!.kind,
               windowStart,
               count: 1,
             },
@@ -109,7 +111,7 @@ export const contributionRouter = router({
           authorId: ctx.userId ?? undefined,
           anonHandle: input.anonHandle,
           ipHash: fp,
-          payload: input.payload,
+          payload: input.payload as Prisma.InputJsonValue,
           message: input.message,
           status,
         },

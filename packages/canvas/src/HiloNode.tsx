@@ -257,7 +257,7 @@ function HostBody({ fields, color }: { fields: Record<string, unknown>; color: s
       </div>
       {(fields.os || ports.length > 0) && (
         <div className="hilo-node__cyber-row">
-          {fields.os && <span className="hilo-node__chip">{fields.os as string}</span>}
+          {fields.os ? <span className="hilo-node__chip">{fields.os as string}</span> : null}
           {ports.length > 0 && (
             <span className="hilo-node__chip" title="Puertos abiertos">
               {ports.slice(0, 4).join(' · ')}

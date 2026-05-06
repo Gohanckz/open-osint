@@ -333,6 +333,6 @@ export const es = {
     loading: 'Cargando…',
     error: 'Error',
   },
-} as const;
+};
 
 export type Messages = typeof es;

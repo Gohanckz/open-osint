@@ -206,7 +206,7 @@ export function BoardCanvas({
   const removeConn = trpc.connection.remove.useMutation();
 
   const onNodesChange = useCallback((changes: Parameters<typeof applyNodeChanges>[0]) => {
-    setNodes((nds) => applyNodeChanges(changes, nds));
+    setNodes((nds) => applyNodeChanges(changes, nds) as Node<HiloNodeData>[]);
     // Persist position on drag stop — usa endpoint bulk para multi-select drag.
     // Filtra IDs temporales (tmp-*) que aún no están persistidos en la DB.
     const positions = changes.flatMap((ch) =>
@@ -220,7 +220,7 @@ export function BoardCanvas({
   }, [board.id, updatePositions]);
 
   const onEdgesChange = useCallback((changes: Parameters<typeof applyEdgeChanges>[0]) => {
-    setEdges((eds) => applyEdgeChanges(changes, eds));
+    setEdges((eds) => applyEdgeChanges(changes, eds) as Edge<HiloEdgeData>[]);
   }, []);
 
   /**
