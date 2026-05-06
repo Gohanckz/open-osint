@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { revalidateTag } from 'next/cache';
 import { router, boardProcedure } from '../trpc.js';
 import { prisma } from '@hilo/db';
 import { CreateConnectionSchema } from '@hilo/shared';
@@ -20,10 +21,12 @@ export const connectionRouter = router({
       if (nodes.length !== 2) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Nodos inválidos.' });
 
       const conn = await prisma.connection.create({ data: { ...input, createdById: ctx.userId } });
-      await prisma.board.update({
+      const board = await prisma.board.update({
         where: { id: input.boardId },
         data: { connectionCount: { increment: 1 } },
+        select: { visibility: true },
       });
+      if (board.visibility === 'PUBLIC') revalidateTag('ranking');
       return conn;
     }),
 
@@ -36,10 +39,12 @@ export const connectionRouter = router({
       });
       if (result.count === 0) throw new TRPCError({ code: 'NOT_FOUND' });
       // Mantén el counter en sync con el delete real
-      await prisma.board.update({
+      const board = await prisma.board.update({
         where: { id: input.boardId },
         data: { connectionCount: { decrement: 1 } },
+        select: { visibility: true },
       });
+      if (board.visibility === 'PUBLIC') revalidateTag('ranking');
       return { ok: true };
     }),
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { revalidateTag } from 'next/cache';
 import { router, authedProcedure, boardProcedure } from '../trpc.js';
 import { prisma } from '@hilo/db';
 import { CreateBoardSchema } from '@hilo/shared';
@@ -32,13 +33,15 @@ export const boardRouter = router({
   }),
 
   create: authedProcedure.input(CreateBoardSchema).mutation(async ({ ctx, input }) => {
-    return prisma.board.create({
+    const board = await prisma.board.create({
       data: {
         ...input,
         ownerId: ctx.userId,
         members: { create: { userId: ctx.userId, role: 'OWNER' } },
       },
     });
+    if (board.visibility === 'PUBLIC') revalidateTag('ranking');
+    return board;
   }),
 
   update: boardProcedure('OWNER')
@@ -80,14 +83,26 @@ export const boardRouter = router({
           payload: { changedKeys: Object.keys(input.patch) },
         },
       });
+      // El score depende solo de boards PUBLIC: invalidar si entra o sale del set público
+      if (
+        input.patch.visibility !== undefined &&
+        (input.patch.visibility === 'PUBLIC' || before.visibility === 'PUBLIC')
+      ) {
+        revalidateTag('ranking');
+      }
       return updated;
     }),
 
   remove: boardProcedure('OWNER')
     .input(z.object({ boardId: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {
+      const before = await prisma.board.findUniqueOrThrow({
+        where: { id: input.boardId },
+        select: { visibility: true },
+      });
       // Borrado en cascada vía Prisma (Board → nodes/connections/etc onDelete: Cascade)
       await prisma.board.delete({ where: { id: input.boardId } });
+      if (before.visibility === 'PUBLIC') revalidateTag('ranking');
       await prisma.activityLog
         .create({
           data: {

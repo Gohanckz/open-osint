@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { auth } from '@/server/auth';
 import { prisma } from '@hilo/db';
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
     await prisma.notification.create({
       data: { recipientId: target.id, actorId: userId, type: 'FOLLOW', payload: {} },
     });
+    // El followerCount del target cambia → ranking afectado
+    revalidateTag('ranking');
   }
 
   return NextResponse.json({ ok: true, following: true });
@@ -59,8 +62,10 @@ export async function DELETE(req: Request) {
   });
   if (!target) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
-  await prisma.follow.deleteMany({
+  const result = await prisma.follow.deleteMany({
     where: { followerId: userId, followingId: target.id },
   });
+  // Solo invalidar si realmente se borró un follow (idempotente: si no existía, no afecta)
+  if (result.count > 0) revalidateTag('ranking');
   return NextResponse.json({ ok: true, following: false });
 }

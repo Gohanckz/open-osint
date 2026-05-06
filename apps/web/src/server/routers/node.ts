@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { revalidateTag } from 'next/cache';
 import type { Prisma } from '@hilo/db';
 import { router, boardProcedure } from '../trpc.js';
 import { prisma } from '@hilo/db';
@@ -80,13 +81,15 @@ export const nodeRouter = router({
           createdById: ctx.userId,
         },
       });
-      await prisma.board.update({
+      const board = await prisma.board.update({
         where: { id: input.boardId },
         data: { nodeCount: { increment: 1 } },
+        select: { visibility: true },
       });
       await prisma.activityLog.create({
         data: { boardId: input.boardId, actorId: ctx.userId, action: 'node.created', payload: { nodeId: node.id } },
       });
+      if (board.visibility === 'PUBLIC') revalidateTag('ranking');
       return node;
     }),
 
