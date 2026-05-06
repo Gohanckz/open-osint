@@ -1,0 +1,736 @@
+// Hilo - The Investigation Board
+// Prisma schema with pgvector + RLS-friendly multi-tenant model.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "fullTextSearchPostgres"]
+  binaryTargets   = ["native", "windows", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgcrypto, citext]
+}
+
+// ────────────────────────────────────────────────────────────
+// Enums
+// ────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+  NEWSROOM
+  ENTERPRISE
+}
+
+enum Visibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum ContributionMode {
+  CLOSED         // solo miembros
+  INVITE         // por invitación
+  OPEN_PENDING   // cualquiera propone, owner aprueba
+  OPEN_INSTANT   // cualquiera publica directo (verificados)
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  COMMENTER
+  VIEWER
+  VERIFIED_CONTRIBUTOR
+}
+
+enum NodeType {
+  PERSON
+  COMPANY
+  EVENT
+  EVIDENCE
+  LOCATION
+  CUSTOM
+  // Cyber investigation types
+  HOST
+  DOMAIN
+  ACCOUNT
+  WALLET
+  VULNERABILITY
+  MALWARE
+  CREDENTIAL
+  NETWORK
+}
+
+enum NodeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum ConnectionType {
+  FAMILY
+  PROFESSIONAL
+  SUSPECT
+  FINANCIAL
+  COMMUNICATION
+  OWNERSHIP
+  CUSTOM
+  // Cyber investigation types
+  RESOLVES_TO       // Domain → Host (DNS)
+  HOSTS             // Host → service / account
+  C2_CALLBACK       // Malware → Host (command & control)
+  TRANSACTION       // Wallet → Wallet (crypto flow)
+  EXPLOITS          // Actor / Malware → Vulnerability
+  CONTROLS          // Person → Account / Wallet
+  EXPOSED_BY        // Person / Account → Credential (data breach)
+  USES_TOOL         // Actor → Malware
+}
+
+enum ContributionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  DOXXING
+  COPYRIGHT
+  MISINFORMATION
+  ILLEGAL
+  OTHER
+}
+
+enum LayoutMode {
+  FREE
+  TIMELINE
+  FORCE
+  HIERARCHY
+  MAP
+}
+
+// ────────────────────────────────────────────────────────────
+// Identidad
+// ────────────────────────────────────────────────────────────
+
+model User {
+  id              String   @id @default(cuid())
+  email           String?  @unique
+  emailVerifiedAt DateTime?
+  username        String?  @unique
+  displayName     String
+  avatarUrl       String?
+  bio             String?
+  passwordHash    String?
+  isVerified      Boolean  @default(false)
+  reputationScore Int      @default(0)
+  privacyMode     Boolean  @default(false)
+  locale          String   @default("en")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastSeenAt      DateTime?
+
+  ownedWorkspaces Workspace[]    @relation("WorkspaceOwner")
+  ownedBoards     Board[]        @relation("BoardOwner")
+  memberships     BoardMember[]
+  seats           WorkspaceSeat[]
+  sessions        Session[]
+  accounts        Account[]
+  contributions   Contribution[]
+  reports         Report[]
+  comments        Comment[]
+  activity        ActivityLog[]
+  apiKeys         ApiKey[]
+  // Social
+  following       Follow[]       @relation("Follower")
+  followers       Follow[]       @relation("Following")
+  notifications   Notification[] @relation("NotifRecipient")
+  notificationsSent Notification[] @relation("NotifActor")
+  joinRequests   BoardJoinRequest[]
+
+  @@index([reputationScore])
+}
+
+// ────────────────────────────────────────────────────────────
+// Social (followers)
+// ────────────────────────────────────────────────────────────
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
+}
+
+// ────────────────────────────────────────────────────────────
+// Notifications
+// ────────────────────────────────────────────────────────────
+
+enum NotificationType {
+  FOLLOW
+  BOARD_INVITE
+  BOARD_JOIN_REQUEST
+  BOARD_REQUEST_ACCEPTED
+  BOARD_REQUEST_REJECTED
+  BOARD_CONTRIBUTION
+  COMMENT_REPLY
+  MENTION
+  SYSTEM
+}
+
+enum JoinRequestDirection {
+  USER_REQUEST    // El usuario pide unirse
+  OWNER_INVITE    // El owner invita al usuario
+}
+
+enum JoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  actorId     String?
+  type        NotificationType
+  payload     Json             @default("{}")
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  recipient User  @relation("NotifRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("NotifActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  type              String
+  refreshToken      String?
+  accessToken       String?
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+  idToken           String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  hash       String   @unique
+  scopes     String[]
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────
+// Workspaces (multi-tenant)
+// ────────────────────────────────────────────────────────────
+
+model Workspace {
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  ownerId            String
+  plan               Plan     @default(FREE)
+  stripeCustomerId   String?
+  stripeSubId        String?
+  trialEndsAt        DateTime?
+  ssoEnabled         Boolean  @default(false)
+  ssoIssuer          String?
+  exportPolicy       Json     @default("{}")
+  retentionDays      Int      @default(0) // 0 = ilimitado
+  watermarkRequired  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  owner  User            @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  boards Board[]
+  seats  WorkspaceSeat[]
+
+  @@index([slug])
+}
+
+model WorkspaceSeat {
+  workspaceId String
+  userId      String
+  role        Role
+  addedAt     DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────
+// Boards
+// ────────────────────────────────────────────────────────────
+
+model Board {
+  id                String           @id @default(cuid())
+  workspaceId       String?
+  ownerId           String
+  parentBoardId     String?          // fork chain
+  forkedAt          DateTime?
+  title             String
+  description       String?
+  coverColor        String?
+  visibility        Visibility       @default(PRIVATE)
+  contributionMode  ContributionMode @default(CLOSED)
+  layoutMode        LayoutMode       @default(FREE)
+  isLocked          Boolean          @default(false)
+  isFeatured        Boolean          @default(false)
+  isVerified        Boolean          @default(false) // Hilo Verified
+  yDocSnapshot      Bytes?
+  yDocVersion       Int              @default(0)
+  healthScore       Int              @default(0)     // Investigation health
+  nodeCount         Int              @default(0)
+  connectionCount   Int              @default(0)
+  templateKey       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  publishedAt       DateTime?
+
+  workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner         User           @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  parentBoard   Board?         @relation("BoardForks", fields: [parentBoardId], references: [id])
+  forks         Board[]        @relation("BoardForks")
+  members       BoardMember[]
+  invitations   Invitation[]
+  nodes         Node[]
+  connections   Connection[]
+  attachments   Attachment[]
+  comments      Comment[]
+  versions      BoardVersion[]
+  contributions Contribution[]
+  reports       Report[]
+  activity      ActivityLog[]
+  hiloLocks     HiloLock[]
+  doxxingTrack  DoxxingTrack[]
+  aiSuggestions AiSuggestion[]
+  joinRequests  BoardJoinRequest[]
+
+  @@index([visibility, updatedAt])
+  @@index([workspaceId])
+  @@index([ownerId])
+  @@index([parentBoardId])
+}
+
+model BoardMember {
+  boardId String
+  userId  String
+  role    Role     @default(VIEWER)
+  addedAt DateTime @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, userId])
+  @@index([userId])
+}
+
+/// Solicitudes de unión a un tablero. Bidireccional:
+/// - direction=USER_REQUEST: el usuario pide unirse (necesita aprobación del owner)
+/// - direction=OWNER_INVITE: el owner invita a un usuario (necesita aceptación del user)
+model BoardJoinRequest {
+  id          String                 @id @default(cuid())
+  boardId     String
+  userId      String
+  direction   JoinRequestDirection
+  status      JoinRequestStatus      @default(PENDING)
+  initiatedBy String                 // userId que inició la acción
+  message     String?
+  role        Role                   @default(EDITOR)
+  createdAt   DateTime               @default(now())
+  respondedAt DateTime?
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([boardId, status])
+  @@index([userId, status])
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  boardId   String
+  email     String?
+  role      Role
+  token     String   @unique
+  invitedBy String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@index([email])
+}
+
+// ────────────────────────────────────────────────────────────
+// Nodos
+// ────────────────────────────────────────────────────────────
+
+model Node {
+  id          String     @id @default(cuid())
+  boardId     String
+  type        NodeType
+  title       String
+  subtitle    String?
+  fields      Json       @default("{}")
+  contentMd   String?
+  tags        String[]   @default([])
+  color       String?
+  x           Float
+  y           Float
+  width       Float      @default(240)
+  height      Float      @default(160)
+  status      NodeStatus @default(APPROVED)
+  createdById String?
+  searchText  String?    // denormalized for FTS (vector(1536) disabled in dev)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  board       Board         @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  comments    Comment[]
+  versions    NodeVersion[]
+  outgoing    Connection[]  @relation("from")
+  incoming    Connection[]  @relation("to")
+  reports     Report[]
+
+  @@index([boardId, status])
+  @@index([boardId, type])
+  @@index([tags], type: Gin)
+}
+
+model NodeVersion {
+  id        String   @id @default(cuid())
+  nodeId    String
+  diff      Json     // JSON Patch RFC 6902
+  authorId  String?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────
+// Conexiones
+// ────────────────────────────────────────────────────────────
+
+model Connection {
+  id          String         @id @default(cuid())
+  boardId     String
+  fromNodeId  String
+  toNodeId    String
+  type        ConnectionType
+  label       String?
+  directional Boolean        @default(true)
+  strength    Int            @default(1) // 1-5
+  verified    Boolean        @default(false)
+  evidence    Json           @default("[]") // ids de Attachment / Node
+  status      NodeStatus     @default(APPROVED)
+  createdById String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  board    Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  fromNode Node  @relation("from", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode   Node  @relation("to", fields: [toNodeId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, status])
+  @@index([fromNodeId])
+  @@index([toNodeId])
+}
+
+// ────────────────────────────────────────────────────────────
+// Adjuntos (con OCR + integridad)
+// ────────────────────────────────────────────────────────────
+
+model Attachment {
+  id           String   @id @default(cuid())
+  nodeId       String?
+  boardId      String
+  s3Key        String   @unique
+  mime         String
+  size         Int
+  hash         String   // SHA-256
+  filename     String
+  ocrText      String?
+  ocrStatus    String   @default("pending") // pending|done|failed|skipped
+  exifStripped Boolean  @default(false)
+  uploadedById String?
+  archiveUrl   String?  // archive.org snapshot si es URL
+  createdAt    DateTime @default(now())
+
+  node  Node? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@index([nodeId])
+  @@index([hash])
+}
+
+// ────────────────────────────────────────────────────────────
+// Comentarios
+// ────────────────────────────────────────────────────────────
+
+model Comment {
+  id        String    @id @default(cuid())
+  boardId   String
+  nodeId    String?
+  authorId  String?
+  parentId  String?
+  body      String
+  resolved  Boolean   @default(false)
+  resolvedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  board   Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  node    Node?     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  author  User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  parent  Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentThread")
+
+  @@index([boardId])
+  @@index([nodeId])
+}
+
+// ────────────────────────────────────────────────────────────
+// Versiones de tablero (snapshots)
+// ────────────────────────────────────────────────────────────
+
+model BoardVersion {
+  id         String   @id @default(cuid())
+  boardId    String
+  label      String?
+  yDoc       Bytes
+  authorId   String?
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────
+// Contribuciones públicas / anonimato / moderación
+// ────────────────────────────────────────────────────────────
+
+model Contribution {
+  id           String             @id @default(cuid())
+  boardId      String
+  authorId     String?
+  anonHandle   String?
+  ipHash       String             // sha256(salt + ip)
+  uaHash       String?
+  payload      Json               // diff propuesto
+  message      String?
+  status       ContributionStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime           @default(now())
+
+  board  Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([boardId, status])
+  @@index([ipHash])
+  @@index([authorId])
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  boardId    String?
+  nodeId     String?
+  reporterId String?
+  reason     ReportReason
+  details    String?
+  status     ReportStatus @default(OPEN)
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime     @default(now())
+
+  board    Board? @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  node     Node?  @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  reporter User?  @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([boardId])
+}
+
+// ────────────────────────────────────────────────────────────
+// Anti-doxxing: tracker de aportes de PII por target
+// ────────────────────────────────────────────────────────────
+
+model DoxxingTrack {
+  id         String   @id @default(cuid())
+  boardId    String
+  targetKey  String   // hash(name+normalizado del nodo person)
+  contributorKey String // ipHash o userId
+  piiType    String   // PHONE | EMAIL | ADDRESS | DOC_ID | DOB | OTHER
+  windowStart DateTime
+  count      Int      @default(1)
+  escalated  Boolean  @default(false)
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, targetKey, contributorKey, windowStart])
+  @@index([boardId, escalated])
+}
+
+// ────────────────────────────────────────────────────────────
+// Hilo Lock - sello criptográfico verificable
+// ────────────────────────────────────────────────────────────
+
+model HiloLock {
+  id           String   @id @default(cuid())
+  boardId      String
+  nodeId       String?
+  payloadHash  String   // sha256 del estado canonical
+  signature    String   // ed25519
+  publicKey    String
+  merkleRoot   String?  // raíz periódica
+  anchorTxId   String?  // tx en blockchain pública (opcional)
+  anchoredAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@index([payloadHash])
+}
+
+// ────────────────────────────────────────────────────────────
+// Sugerencias de IA y conexiones inferidas
+// ────────────────────────────────────────────────────────────
+
+model AiSuggestion {
+  id          String   @id @default(cuid())
+  boardId     String
+  kind        String   // DUPLICATE | CONNECTION | TAG | SUMMARY | CLUSTER
+  payload     Json
+  confidence  Float
+  status      String   @default("pending") // pending|accepted|dismissed
+  createdAt   DateTime @default(now())
+  decidedAt   DateTime?
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, status])
+}
+
+// ────────────────────────────────────────────────────────────
+// Activity log (auditoría)
+// ────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  boardId   String
+  actorId   String?
+  action    String
+  payload   Json     @default("{}")
+  ipHash    String?
+  createdAt DateTime @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([boardId, createdAt])
+  @@index([actorId])
+}
+
+// ────────────────────────────────────────────────────────────
+// Federación / fuentes externas
+// ────────────────────────────────────────────────────────────
+
+model ExternalEntity {
+  id         String   @id @default(cuid())
+  source     String   // OPENCORPORATES | OFAC | ALEPH | ARCHIVE_ORG
+  externalId String
+  payload    Json
+  fetchedAt  DateTime @default(now())
+
+  @@unique([source, externalId])
+  @@index([source])
+}
+
+// ────────────────────────────────────────────────────────────
+// Plantillas
+// ────────────────────────────────────────────────────────────
+
+model Template {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  title       String
+  description String
+  category    String
+  authorId    String?
+  isOfficial  Boolean  @default(false)
+  payload     Json
+  installs    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+}

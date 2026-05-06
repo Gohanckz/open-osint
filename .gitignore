@@ -1,0 +1,36 @@
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+out/
+*.log
+.env
+.env.local
+.env.*.local
+!.env.example
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+# AI tooling local config (contains usernames + permissions)
+.claude/
+.cursor/
+.windsurf/
+.factory/
+.continue/
+coverage/
+.tsbuildinfo
+*.tsbuildinfo
+.pnpm-store/
+.cache/
+playwright-report/
+test-results/
+storybook-static/
+prisma/migrations/dev/
+# Next.js build artifacts in apps
+apps/*/.next/
+apps/*/.turbo/
+# Local DB / Docker volumes
+infra/data/

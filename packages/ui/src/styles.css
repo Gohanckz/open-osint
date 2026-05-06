@@ -1,0 +1,340 @@
+@import 'tailwindcss';
+
+@theme {
+  /* === DARK SLATE BOARD BASE === */
+  --color-bg-canvas: #14171c;          /* Pizarra slate oscura */
+  --color-bg-canvas-dark: #0a0c10;     /* Bordes / vignette */
+  --color-bg-surface: #1c2027;         /* Superficie sidebar/inspector */
+  --color-bg-elevated: #232831;        /* Modales / dropdown */
+  --color-bg-overlay: #07080b;         /* Overlay máximo */
+
+  --color-paper-white: #fafaf6;        /* Papel limpio (post-its sobre dark) */
+  --color-paper-aged: #ede4ce;         /* Papel envejecido */
+  --color-paper-yellow: #ffe066;       /* Post-it amarillo brillante */
+  --color-paper-manila: #d9b97a;       /* Carpeta de expediente */
+  --color-paper-newsprint: #d8d2c0;    /* Recorte de periódico */
+
+  /* === BOARD GRID & TEXTURE === */
+  --color-board-grid: rgba(180, 200, 220, 0.04);
+  --color-board-grid-strong: rgba(180, 200, 220, 0.08);
+  --color-board-glow: rgba(99, 145, 220, 0.05);
+  --color-board-shadow: rgba(0, 0, 0, 0.6);
+
+  /* === BORDERS === */
+  --color-border-subtle: #2a313d;      /* Borde sutil oscuro */
+  --color-border-strong: #3a4452;
+  --color-border-paper: #d9c8a4;       /* Borde dentro de papeles */
+
+  /* === INK / TEXT === */
+  --color-text-primary: #e8eaed;       /* Texto principal claro */
+  --color-text-muted: #9aa3b3;         /* Texto secundario */
+  --color-text-faded: #6b7280;         /* Texto desvanecido */
+  --color-text-on-paper: #1a1a1a;      /* Texto sobre papel claro (nodos) */
+  --color-text-on-cork: #e8eaed;       /* Compatibilidad */
+
+  /* === RED THREAD (HILO ROJO) === */
+  --color-accent: #ef4444;             /* Rojo evidencia más vibrante en dark */
+  --color-accent-hover: #f87171;
+  --color-accent-subtle: #fca5a5;
+  --color-thread: #ef4444;
+  --color-thread-shadow: rgba(0, 0, 0, 0.7);
+
+  /* === PINS (TACHUELAS) — más vibrantes para contrastar con dark === */
+  --color-pin-red: #ff4757;
+  --color-pin-red-shine: #ff7a85;
+  --color-pin-blue: #4a90e2;
+  --color-pin-blue-shine: #7eb6f5;
+  --color-pin-yellow: #ffc857;
+  --color-pin-shadow: rgba(0, 0, 0, 0.5);
+
+  /* === STAMPS / SEMANTIC === */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #ef4444;
+  --color-info: #60a5fa;
+  --color-stamp-red: #ef4444;
+  --color-stamp-blue: #60a5fa;
+
+  /* === NODE TYPE COLORS (sellos/etiquetas) — vibrantes para dark === */
+  --color-node-person: #60a5fa;        /* Azul claro */
+  --color-node-company: #fbbf24;       /* Ámbar */
+  --color-node-event: #c084fc;         /* Púrpura */
+  --color-node-evidence: #4ade80;      /* Verde lima */
+  --color-node-location: #fb923c;      /* Naranja */
+  --color-node-custom: #94a3b8;        /* Gris azulado */
+
+  /* === RELATIONSHIP THREAD COLORS — vibrantes === */
+  --color-rel-family: #60a5fa;
+  --color-rel-professional: #94a3b8;
+  --color-rel-suspect: #ef4444;
+  --color-rel-financial: #fb923c;
+  --color-rel-communication: #4ade80;
+  --color-rel-ownership: #c084fc;
+
+  /* === RADIUS === */
+  --radius-sm: 2px;                    /* Esquinas casi rectas (papel cortado) */
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-paper: 1px;                 /* Papeles realistas */
+
+  /* === SHADOWS — más profundas para sensación dark elevated === */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 6px 14px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 16px 32px rgba(0, 0, 0, 0.65), 0 6px 12px rgba(0, 0, 0, 0.4);
+  --shadow-pinned: 0 10px 24px rgba(0, 0, 0, 0.6), 0 3px 6px rgba(0, 0, 0, 0.4);
+  --shadow-pin-head: 0 2px 4px rgba(0, 0, 0, 0.7), inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+  --shadow-paper: 0 4px 10px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-thread: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.7));
+  --shadow-stamp: 0 0 0 2px currentColor inset;
+  --shadow-glow-accent: 0 0 24px rgba(239, 68, 68, 0.25);
+
+  /* === FONTS === */
+  --font-sans: var(--font-ui, 'Inter'), system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-typewriter: var(--font-typewriter, 'Special Elite'), 'Courier New', monospace;
+  --font-handwritten: var(--font-handwritten, 'Caveat'), cursive;
+  --font-serif: 'Georgia', serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    background: var(--color-bg-canvas);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-border-subtle);
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-paper-white);
+  }
+
+  .scroll-smooth-page {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .hilo-thread-line {
+    stroke: var(--color-thread);
+    stroke-width: 2;
+    fill: none;
+    filter: var(--shadow-thread);
+  }
+
+  /* Texto tipo máquina de escribir */
+  .font-typewriter {
+    font-family: var(--font-typewriter);
+    letter-spacing: 0.01em;
+  }
+
+  /* Texto manuscrito */
+  .font-handwritten {
+    font-family: var(--font-handwritten);
+  }
+
+  /* Sello de tinta (rotado, contorno doble) */
+  .ink-stamp {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+    font-family: var(--font-typewriter);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transform: rotate(-4deg);
+    opacity: 0.85;
+    box-shadow: 0 0 0 2px transparent, inset 0 0 0 1px currentColor;
+  }
+
+  /* Tachuela genérica (pseudo-elemento) */
+  .pin-top {
+    position: relative;
+  }
+  .pin-top::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at 35% 30%,
+      var(--color-pin-red-shine) 0%,
+      var(--color-pin-red) 45%,
+      #7a1419 100%
+    );
+    box-shadow: var(--shadow-pin-head);
+    z-index: 2;
+  }
+  .pin-top::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    width: 2px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.25);
+    transform: translateX(-50%) rotate(8deg);
+    z-index: 1;
+    border-radius: 1px;
+  }
+}
+
+/* === TEXTURAS === */
+
+/* Pizarra dark moderna con grid sutil + glow ambiental */
+.bg-board {
+  background-color: var(--color-bg-canvas);
+  background-image:
+    /* Grid principal */
+    linear-gradient(var(--color-board-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-board-grid) 1px, transparent 1px),
+    /* Glow ambiental superior */
+    radial-gradient(ellipse at 20% 0%, var(--color-board-glow) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, var(--color-board-glow) 0%, transparent 50%),
+    /* Vignette + degradado base */
+    radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(135deg, #181c24 0%, #14171c 50%, #0f1217 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+}
+
+/* Textura papel envejecido */
+.bg-paper-aged {
+  background-color: var(--color-paper-aged);
+  background-image:
+    radial-gradient(ellipse at 10% 20%, rgba(139, 111, 78, 0.08) 0%, transparent 40%),
+    radial-gradient(ellipse at 90% 80%, rgba(139, 111, 78, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(212, 165, 116, 0.05) 0%, transparent 70%);
+}
+
+/* Overlay de grano global (para usar con ::after) */
+.grain-overlay {
+  position: relative;
+}
+.grain-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+}
+
+/* === SLIDER (input range) — dark accent === */
+.hilo-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--color-border-subtle);
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.hilo-slider:hover {
+  background: var(--color-border-strong);
+}
+.hilo-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 28%,
+    var(--color-pin-red-shine) 0%,
+    var(--color-pin-red) 50%,
+    #7a1419 100%
+  );
+  border: 2px solid var(--color-bg-canvas);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  transition: transform 150ms;
+}
+.hilo-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+.hilo-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.3);
+}
+.hilo-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-pin-red);
+  border: 2px solid var(--color-bg-canvas);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+}
+
+/* === ANIMATIONS === */
+
+@keyframes hilo-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.96); }
+}
+
+@keyframes hilo-thread-draw {
+  from { stroke-dashoffset: 100%; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes pin-drop {
+  0% { transform: translateY(-30px) rotate(-15deg); opacity: 0; }
+  60% { transform: translateY(2px) rotate(2deg); opacity: 1; }
+  100% { transform: translateY(0) rotate(0); opacity: 1; }
+}
+
+/* Animaciones para modales / dialogs */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes scaleOut {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.94); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

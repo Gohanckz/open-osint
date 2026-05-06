@@ -1,0 +1,87 @@
+# =============================================================================
+# Open Osint — Production self-hosted stack
+#
+# Build images first from the repo root:
+#   docker build -f apps/web/Dockerfile -t openosint/web:latest .
+#
+# Then start the stack:
+#   docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Required env vars in .env.prod (or environment):
+#   POSTGRES_PASSWORD
+#   AUTH_SECRET
+#   IP_HASH_SALT
+#   APP_DOMAIN  (e.g. open-osint.example.com)
+# =============================================================================
+name: openosint-prod
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-osint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-osint}
+    volumes:
+      - osint-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', '${POSTGRES_USER:-osint}']
+      interval: 10s
+      retries: 6
+    networks:
+      - osint-net
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    volumes:
+      - osint-redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      retries: 6
+    networks:
+      - osint-net
+
+  web:
+    image: openosint/web:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-osint}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-osint}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-osint}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-osint}?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      AUTH_URL: https://${APP_DOMAIN:?APP_DOMAIN is required}
+      NEXTAUTH_URL: https://${APP_DOMAIN}
+      IP_HASH_SALT: ${IP_HASH_SALT:?IP_HASH_SALT is required}
+      # Optional integrations
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Open Osint <noreply@open-osint.app>}
+      TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      HOCUSPOCUS_URL: ${HOCUSPOCUS_URL:-}
+      HOCUSPOCUS_SECRET: ${HOCUSPOCUS_SECRET:-}
+    ports:
+      - '3001:3001'
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3001/']
+      interval: 30s
+      retries: 3
+    networks:
+      - osint-net
+
+volumes:
+  osint-pg:
+  osint-redis:
+
+networks:
+  osint-net:
+    driver: bridge

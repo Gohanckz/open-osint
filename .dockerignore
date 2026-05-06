@@ -1,0 +1,56 @@
+# Build artifacts
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+dist
+**/dist
+build
+**/build
+out
+**/out
+coverage
+.tsbuildinfo
+**/*.tsbuildinfo
+
+# Local secrets — Docker stage gets env vars from runtime, never bakes them in
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# OS / IDE / AI tool clutter
+.DS_Store
+.idea
+.vscode
+.claude
+.cursor
+.windsurf
+.factory
+.continue
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Tests
+playwright-report
+test-results
+
+# Existing Dockerfiles + README (not needed at build time)
+README.md
+LICENSE
+**/Dockerfile
+**/Dockerfile.*
+
+# Local Docker volumes
+infra/data

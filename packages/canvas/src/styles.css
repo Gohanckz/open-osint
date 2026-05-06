@@ -1,0 +1,935 @@
+@import '@xyflow/react/dist/style.css';
+
+/* ============================================================
+   CANVAS — TABLERO DE CORCHO
+   ============================================================ */
+
+.hilo-canvas {
+  background-color: var(--color-bg-canvas);
+  background-image:
+    /* Grid principal */
+    linear-gradient(var(--color-board-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-board-grid) 1px, transparent 1px),
+    /* Grid mayor cada 5 celdas */
+    linear-gradient(var(--color-board-grid-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-board-grid-strong) 1px, transparent 1px),
+    /* Glow ambiental */
+    radial-gradient(ellipse at 25% 15%, rgba(99, 145, 220, 0.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 75% 85%, rgba(239, 68, 68, 0.04) 0%, transparent 50%),
+    /* Vignette */
+    radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%),
+    /* Degradado base */
+    linear-gradient(135deg, #181c24 0%, #14171c 50%, #0f1217 100%);
+  background-size:
+    32px 32px, 32px 32px,
+    160px 160px, 160px 160px,
+    100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  position: relative;
+}
+
+/* Grano fino sobre toda la superficie del canvas */
+.hilo-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+/* Ocultar el background dotted nativo de ReactFlow */
+.hilo-canvas .react-flow__background {
+  display: none;
+}
+
+/* Minimap dark glass */
+.hilo-canvas .react-flow__minimap {
+  background: rgba(20, 23, 28, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-3);
+}
+
+.hilo-canvas .react-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.55);
+}
+
+/* Controls dark glass */
+.hilo-canvas .react-flow__controls {
+  background: rgba(20, 23, 28, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+
+.hilo-canvas .react-flow__controls-button {
+  background: transparent;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  fill: var(--color-text-muted);
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.hilo-canvas .react-flow__controls-button:hover {
+  background: rgba(99, 145, 220, 0.12);
+  color: var(--color-text-primary);
+  fill: var(--color-text-primary);
+}
+
+.hilo-canvas .react-flow__attribution {
+  background: transparent;
+  color: var(--color-text-faded);
+}
+
+/* ============================================================
+   EDGES — HILO ROJO (estilo cuerda)
+   ============================================================ */
+
+/* Edges: el estilo de hilo se aplica directamente en HiloEdge.tsx (multi-stroke). */
+.hilo-canvas .react-flow__edge.selected .react-flow__edge-path,
+.hilo-canvas .react-flow__edge:focus .react-flow__edge-path {
+  outline: none;
+}
+
+/* Cursor pointer sobre toda el área de la arista (incluye la hit-area invisible) */
+.hilo-canvas .react-flow__edge {
+  cursor: pointer;
+}
+
+/* La hit-area transparente (24px ancho) es lo que recibe el click — fácil de acertar.
+   En hover muestra un leve highlight en la línea visible vía sibling selector no es posible
+   así que usamos un fallback con visibility de la propia área. */
+.hilo-edge__hitarea {
+  transition: stroke 150ms ease;
+}
+.hilo-edge__hitarea:hover {
+  stroke: rgba(255, 71, 87, 0.18);
+}
+
+/* Botón flotante para eliminar la arista (visible cuando está seleccionada) */
+.hilo-edge__delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 9999px;
+  background: var(--color-pin-red);
+  color: white;
+  border: 2px solid var(--color-paper-white);
+  cursor: pointer;
+  font-family: var(--font-typewriter);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55), 0 0 0 4px rgba(255, 71, 87, 0.2);
+  transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  animation: hilo-pop 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.hilo-edge__delete:hover {
+  transform: scale(1.06);
+  background: #ff6b73;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), 0 0 0 6px rgba(255, 71, 87, 0.28);
+}
+
+.hilo-edge__delete:active {
+  transform: scale(0.97);
+}
+
+.hilo-edge__delete-label {
+  display: inline-block;
+  padding-right: 2px;
+}
+
+@keyframes hilo-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================
+   NODES — PAPELES PINCHADOS
+   ============================================================ */
+
+.hilo-node {
+  position: relative;
+  min-width: 200px;
+  max-width: 260px;
+  background: var(--color-paper-aged);
+  /* Texto oscuro por defecto porque el papel es claro (overrideable via fields.textColor) */
+  color: var(--color-text-on-paper, #1a1a1a);
+  padding: 14px 14px 12px;
+  border-radius: var(--radius-paper);
+  box-shadow: var(--shadow-pinned);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--font-typewriter);
+
+  /* Textura papel envejecido */
+  background-image:
+    radial-gradient(ellipse at 12% 18%, rgba(139, 111, 78, 0.1) 0%, transparent 40%),
+    radial-gradient(ellipse at 88% 82%, rgba(139, 111, 78, 0.12) 0%, transparent 45%),
+    radial-gradient(ellipse at 55% 50%, rgba(212, 165, 116, 0.06) 0%, transparent 70%);
+
+  /* Rotación aleatoria leve por nodo (variable inline) */
+  transform: rotate(var(--node-rotation, -1deg));
+  transform-origin: 50% 0%;
+  z-index: 5;
+}
+
+.hilo-node:hover {
+  transform: rotate(var(--node-rotation, -1deg)) translateY(-2px) scale(1.015);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35), 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.hilo-node.selected {
+  z-index: 15;
+  box-shadow: 0 0 0 2px var(--color-accent), 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.hilo-node.pending {
+  opacity: 0.85;
+}
+
+.hilo-node.pending::before {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-warning),
+    var(--color-warning) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+/* Tachuela superior (head + sombra) */
+.hilo-node__pin {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.hilo-node__pin-head {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 28%,
+    var(--pin-shine, var(--color-pin-red-shine)) 0%,
+    var(--pin-color, var(--color-pin-red)) 45%,
+    color-mix(in srgb, var(--pin-color, var(--color-pin-red)) 60%, black) 100%
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -2px 2px rgba(0, 0, 0, 0.3),
+    inset 1px 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.hilo-node__pin-shadow {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 4px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.32);
+  filter: blur(1px);
+  transform: translateX(-50%) rotate(8deg);
+  border-radius: 1px;
+}
+
+/* Tipo / etiqueta superior */
+.hilo-node__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-typewriter);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  /* En papel claro: texto secundario en marrón tinta desvanecida */
+  color: rgba(26, 26, 26, 0.55);
+}
+
+.hilo-node__type-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--type-color, var(--color-text-muted));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.hilo-node__title {
+  margin-top: 6px;
+  font-family: var(--font-typewriter);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.25;
+  /* Hereda del .hilo-node (oscuro por defecto, overrideable inline) */
+  color: inherit;
+  letter-spacing: 0.01em;
+}
+
+.hilo-node__subtitle {
+  margin-top: 4px;
+  font-family: var(--font-handwritten);
+  font-size: 14px;
+  line-height: 1.2;
+  color: rgba(26, 26, 26, 0.62);
+}
+
+.hilo-node__meta {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border-paper);
+  display: flex;
+  gap: 10px;
+  font-family: var(--font-typewriter);
+  font-size: 10px;
+  color: rgba(26, 26, 26, 0.55);
+}
+
+/* === HANDLES — siempre visibles, hit area generosa, glow al hover === */
+.hilo-node__handle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 28%,
+    var(--color-pin-red-shine) 0%,
+    var(--color-pin-red) 55%,
+    #7a1419 100%
+  );
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), inset 1px 1px 1px rgba(255, 255, 255, 0.5);
+  opacity: 0.55;
+  transition: opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  z-index: 6;
+}
+
+/* Hit area invisible 28×28 alrededor del handle (fácil de agarrar) */
+.hilo-node__handle::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+}
+
+.hilo-node__handle--top {
+  top: -8px;
+}
+.hilo-node__handle--bottom {
+  bottom: -8px;
+}
+.hilo-node__handle--left {
+  left: -8px;
+}
+.hilo-node__handle--right {
+  right: -8px;
+}
+
+.hilo-node:hover .hilo-node__handle,
+.hilo-node.selected .hilo-node__handle {
+  opacity: 1;
+  box-shadow: 0 0 0 4px rgba(255, 71, 87, 0.18), 0 1px 3px rgba(0, 0, 0, 0.7),
+    inset 1px 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.hilo-node__handle:hover,
+.hilo-node__handle.connectingfrom {
+  opacity: 1 !important;
+  transform: scale(1.4);
+  cursor: crosshair;
+  box-shadow: 0 0 0 6px rgba(255, 71, 87, 0.3), 0 0 12px rgba(255, 71, 87, 0.6),
+    inset 1px 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+/* Cuando se está arrastrando una conexión, todos los handles destino se iluminan */
+.hilo-canvas.connecting .hilo-node__handle {
+  opacity: 1;
+  animation: hilo-handle-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes hilo-handle-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4), 0 1px 3px rgba(0,0,0,0.7); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 71, 87, 0.0), 0 1px 3px rgba(0,0,0,0.7); }
+}
+
+/* Línea de conexión en arrastre (mientras se conecta) */
+.hilo-canvas .react-flow__connection-path {
+  stroke: var(--color-thread);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 5 4;
+  filter: drop-shadow(0 1.5px 1.5px rgba(40, 20, 10, 0.5));
+  animation: hilo-thread-draw 600ms linear infinite;
+}
+
+/* ============================================================
+   VARIANTES POR TIPO
+   ============================================================ */
+
+/* PERSON — Polaroid (foto + marco blanco) */
+.hilo-node--person {
+  background: var(--color-paper-white);
+  padding: 12px 12px 22px;
+  --pin-color: var(--color-pin-blue);
+  --pin-shine: var(--color-pin-blue-shine);
+}
+
+.hilo-node--person .hilo-node__photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #1a1d22;
+  border-radius: 1px;
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.hilo-node__photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: contrast(0.95) saturate(0.92);
+}
+
+.hilo-node__photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: rgba(245, 230, 200, 0.45);
+  font-family: var(--font-typewriter);
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  background: linear-gradient(135deg, #2a2520 0%, #3a2f25 50%, #2a2520 100%);
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+/* EVIDENCE — Documento con sello */
+.hilo-node--evidence {
+  background: var(--color-paper-white);
+  --pin-color: var(--color-pin-red);
+  --pin-shine: var(--color-pin-red-shine);
+}
+
+.hilo-node--evidence .hilo-node__stamp {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  font-family: var(--font-typewriter);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--color-stamp-red);
+  border: 2px solid var(--color-stamp-red);
+  padding: 2px 6px;
+  border-radius: 2px;
+  transform: rotate(8deg);
+  opacity: 0.75;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+/* EVENT — Post-it amarillo */
+.hilo-node--event {
+  background: var(--color-paper-yellow);
+  background-image:
+    radial-gradient(ellipse at 88% 88%, rgba(180, 140, 30, 0.15) 0%, transparent 40%),
+    linear-gradient(135deg, #ffe99a 0%, #ffd966 100%);
+  --pin-color: var(--color-pin-yellow);
+  --pin-shine: #f5d65a;
+  /* Esquina doblada */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+}
+
+.hilo-node--event::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(135deg, transparent 50%, rgba(180, 140, 30, 0.4) 50%, rgba(120, 90, 20, 0.6) 100%);
+  pointer-events: none;
+}
+
+/* LOCATION — Recorte de mapa */
+.hilo-node--location {
+  background: var(--color-paper-aged);
+  --pin-color: var(--color-pin-red);
+  --pin-shine: var(--color-pin-red-shine);
+  background-image:
+    /* Líneas tipo mapa */
+    linear-gradient(45deg, transparent 48%, rgba(139, 111, 78, 0.15) 49%, rgba(139, 111, 78, 0.15) 51%, transparent 52%),
+    linear-gradient(-45deg, transparent 48%, rgba(139, 111, 78, 0.12) 49%, rgba(139, 111, 78, 0.12) 51%, transparent 52%),
+    radial-gradient(circle at 50% 50%, var(--color-pin-red) 0%, var(--color-pin-red) 4%, transparent 5%),
+    linear-gradient(135deg, #f0deb8 0%, #e8c990 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%;
+}
+
+/* COMPANY — Hoja oficial con membrete */
+.hilo-node--company {
+  background: var(--color-paper-white);
+  --pin-color: var(--color-pin-blue);
+  --pin-shine: var(--color-pin-blue-shine);
+  border-top: 4px double var(--color-node-company);
+  padding-top: 10px;
+}
+
+/* CUSTOM — Nota suelta */
+.hilo-node--custom {
+  background: var(--color-paper-newsprint);
+  --pin-color: var(--color-pin-red);
+  --pin-shine: var(--color-pin-red-shine);
+}
+
+/* Pending: cinta adhesiva tipo washi en vez de papel limpio */
+.hilo-node.pending::after {
+  content: 'PENDIENTE';
+  position: absolute;
+  top: -6px;
+  right: 8px;
+  font-family: var(--font-typewriter);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  background: var(--color-warning);
+  color: var(--color-paper-white);
+  padding: 2px 6px;
+  transform: rotate(4deg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================================
+   CYBER NODES — estilo "ficha técnica" — terminal / monospace / sin polaroid
+   ========================================================================== */
+
+.hilo-node--cyber {
+  background: linear-gradient(180deg, #1c2027 0%, #14171c 100%);
+  color: #e8eaed;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--type-color, #3a4452);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.55),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  /* Sutil patrón de "circuit lines" */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(180deg, #1c2027 0%, #14171c 100%);
+  background-size: 12px 12px, 12px 12px, 100% 100%;
+}
+
+.hilo-node--cyber:hover {
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.65),
+    0 0 24px color-mix(in srgb, var(--type-color, #3a4452) 30%, transparent),
+    0 0 0 1px var(--type-color, #3a4452) inset;
+}
+
+.hilo-node--cyber.selected {
+  box-shadow:
+    0 0 0 2px var(--color-accent),
+    0 12px 24px rgba(0, 0, 0, 0.55);
+}
+
+.hilo-node--cyber .hilo-node__title {
+  margin: 0;
+  padding: 6px 12px 0;
+  color: #e8eaed;
+  font-family: var(--font-typewriter);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.hilo-node--cyber .hilo-node__subtitle {
+  padding: 0 12px;
+  font-family: var(--font-typewriter);
+  font-size: 11px;
+  color: #9aa3b3;
+}
+
+.hilo-node--cyber .hilo-node__type {
+  padding: 6px 12px 0;
+  color: var(--type-color, #9aa3b3);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+}
+
+.hilo-node--cyber .hilo-node__type-dot {
+  background: var(--type-color, #9aa3b3);
+  box-shadow: 0 0 8px var(--type-color, #9aa3b3);
+}
+
+.hilo-node--cyber .hilo-node__meta {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-typewriter);
+  color: #6b7280;
+}
+
+/* Handles cyber: nodo neón cuadrado (no chincheta de corcho) que respeta el
+   color del tipo. Sustituye el degradado radial rojo de los OSINT/polaroid. */
+.hilo-node--cyber .hilo-node__handle {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--type-color, #9aa3b3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--type-color, #9aa3b3) 70%, transparent),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  opacity: 0.7;
+}
+
+.hilo-node--cyber:hover .hilo-node__handle,
+.hilo-node--cyber.selected .hilo-node__handle {
+  opacity: 1;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--type-color, #9aa3b3) 25%, transparent),
+    0 0 10px color-mix(in srgb, var(--type-color, #9aa3b3) 80%, transparent);
+}
+
+.hilo-node--cyber .hilo-node__handle:hover,
+.hilo-node--cyber .hilo-node__handle.connectingfrom {
+  opacity: 1 !important;
+  transform: scale(1.35);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--type-color, #9aa3b3) 30%, transparent),
+    0 0 14px color-mix(in srgb, var(--type-color, #9aa3b3) 90%, transparent);
+}
+
+/* Header ribbon con icono */
+.hilo-node__cyber-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.hilo-node__cyber-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+/* Componentes comunes cyber */
+
+.hilo-node__cyber-mono {
+  font-family: var(--font-mono, 'JetBrains Mono', 'Courier New', monospace);
+  letter-spacing: 0.02em;
+}
+
+.hilo-node__cyber-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 12px 6px;
+}
+
+.hilo-node__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.hilo-node__chip--neutral {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+}
+
+.hilo-node__chip--danger {
+  background: rgba(220, 38, 38, 0.18);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #fca5a5;
+}
+
+.hilo-node__cyber-stamp {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-family: var(--font-typewriter);
+  font-size: 8px;
+  letter-spacing: 0.25em;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  transform: rotate(8deg);
+  pointer-events: none;
+}
+
+.hilo-node__cyber-stamp--danger {
+  background: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.hilo-node__status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: 8px;
+  box-shadow: 0 0 6px currentColor;
+  vertical-align: middle;
+}
+
+/* HOST */
+
+.hilo-node--host {
+  min-width: 200px;
+}
+
+.hilo-node__host-ip {
+  padding: 4px 12px 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+}
+
+/* DOMAIN */
+
+.hilo-node--domain {
+  min-width: 200px;
+}
+
+.hilo-node__domain-name {
+  padding: 6px 12px 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #93c5fd;
+  word-break: break-all;
+}
+
+/* ACCOUNT */
+
+.hilo-node--account {
+  min-width: 200px;
+}
+
+.hilo-node__account-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  color: white;
+  font-family: var(--font-typewriter);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+}
+
+.hilo-node__verified-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  color: #1d9bf0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.hilo-node__account-handle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #e8eaed;
+}
+
+.hilo-node__account-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.hilo-node__account-avatar--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 92, 246, 0.18);
+  color: #a78bfa;
+}
+
+/* WALLET */
+
+.hilo-node--wallet {
+  min-width: 200px;
+  background: linear-gradient(180deg, #0a0c10 0%, #14171c 100%);
+}
+
+.hilo-node__wallet-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.hilo-node__wallet-chain {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+  text-shadow: 0 0 12px currentColor;
+}
+
+.hilo-node__wallet-chain-name {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: #facc15;
+  font-weight: 600;
+}
+
+.hilo-node__wallet-address {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #4ade80;
+  letter-spacing: 0.05em;
+}
+
+/* VULNERABILITY */
+
+.hilo-node--vulnerability {
+  min-width: 200px;
+}
+
+.hilo-node__vuln-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 4px;
+}
+
+.hilo-node__vuln-severity {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-family: var(--font-typewriter);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: white;
+}
+
+.hilo-node__vuln-cvss {
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.hilo-node__vuln-cvss strong {
+  color: #f97316;
+  font-weight: 700;
+}
+
+.hilo-node__vuln-cve {
+  padding: 0 12px 6px;
+  font-size: 12px;
+  color: #fbbf24;
+}
+
+/* MALWARE */
+
+.hilo-node--malware {
+  min-width: 200px;
+}
+
+.hilo-node__malware-family {
+  padding: 6px 12px 4px;
+  font-family: var(--font-typewriter);
+  font-size: 14px;
+  font-weight: 600;
+  color: #f87171;
+}
+
+.hilo-node__malware-hash {
+  padding: 4px 12px 6px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* CREDENTIAL */
+
+.hilo-node--credential {
+  min-width: 200px;
+}
+
+.hilo-node__credential-login {
+  padding: 6px 12px 2px;
+  font-size: 13px;
+  color: #fbbf24;
+}
+
+.hilo-node__credential-redacted {
+  padding: 0 12px 6px;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  color: #6b7280;
+}
+
+/* NETWORK */
+
+.hilo-node--network {
+  min-width: 200px;
+}
+
+.hilo-node__network-cidr {
+  padding: 6px 12px 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #06b6d4;
+}

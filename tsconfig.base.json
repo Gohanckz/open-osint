@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "incremental": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@hilo/db": ["./packages/db/src"],
+      "@hilo/db/*": ["./packages/db/src/*"],
+      "@hilo/ui": ["./packages/ui/src"],
+      "@hilo/ui/*": ["./packages/ui/src/*"],
+      "@hilo/canvas": ["./packages/canvas/src"],
+      "@hilo/canvas/*": ["./packages/canvas/src/*"],
+      "@hilo/shared": ["./packages/shared/src"],
+      "@hilo/shared/*": ["./packages/shared/src/*"],
+      "@hilo/config": ["./packages/config/src"]
+    }
+  }
+}

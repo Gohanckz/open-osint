@@ -1,0 +1,43 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "noEmit": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@hilo/db": [
+        "../../packages/db/src"
+      ],
+      "@hilo/shared": [
+        "../../packages/shared/src"
+      ],
+      "@hilo/ui": [
+        "../../packages/ui/src"
+      ],
+      "@hilo/canvas": [
+        "../../packages/canvas/src"
+      ],
+      "@hilo/config": [
+        "../../packages/config/src"
+      ]
+    },
+    "allowJs": true
+  },
+  "include": [
+    ".next/types/**/*",
+    "next-env.d.ts",
+    "src/**/*",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
