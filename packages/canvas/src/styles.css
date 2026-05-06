@@ -537,7 +537,8 @@
   background: linear-gradient(180deg, #1c2027 0%, #14171c 100%);
   color: #e8eaed;
   padding: 0;
-  overflow: hidden;
+  /* overflow: visible para que los handles (top:-8px) no se recorten */
+  overflow: visible;
   border: 1px solid var(--type-color, #3a4452);
   box-shadow:
     0 8px 20px rgba(0, 0, 0, 0.55),
@@ -604,15 +605,15 @@
 /* Handles cyber: nodo neón cuadrado (no chincheta de corcho) que respeta el
    color del tipo. Sustituye el degradado radial rojo de los OSINT/polaroid. */
 .hilo-node--cyber .hilo-node__handle {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 2px;
   background: var(--type-color, #9aa3b3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow:
-    0 0 6px color-mix(in srgb, var(--type-color, #9aa3b3) 70%, transparent),
+    0 0 8px color-mix(in srgb, var(--type-color, #9aa3b3) 80%, transparent),
     inset 0 0 0 1px rgba(0, 0, 0, 0.35);
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .hilo-node--cyber:hover .hilo-node__handle,
@@ -640,6 +641,9 @@
   padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(255, 255, 255, 0.02);
+  /* match parent rounded corners (overflow:visible permite handles fuera del nodo) */
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
 }
 
 .hilo-node__cyber-icon {

@@ -140,7 +140,7 @@ const TYPE_FIELDS: Record<string, Array<{ key: string; label: string; type?: str
   ],
 };
 
-const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export function Inspector({
@@ -278,15 +278,20 @@ export function Inspector({
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('Solo imágenes (JPG, PNG, WebP)');
+      setError(`Tipo no soportado: "${file.type || 'desconocido'}". Usa JPG, PNG o WebP.`);
       return;
     }
     if (file.size > MAX_PHOTO_BYTES) {
-      setError(`Máximo ${(MAX_PHOTO_BYTES / 1024 / 1024).toFixed(0)} MB`);
+      setError(`Archivo de ${(file.size / 1024 / 1024).toFixed(2)} MB excede el máximo de ${(MAX_PHOTO_BYTES / 1024 / 1024).toFixed(0)} MB`);
       return;
     }
-    const dataUrl = await readAsDataUrl(file);
-    persistFields({ ...fields, photoUrl: dataUrl });
+    try {
+      const dataUrl = await readAsDataUrl(file);
+      persistFields({ ...fields, photoUrl: dataUrl });
+    } catch (err) {
+      setError(`Error leyendo el archivo: ${(err as Error).message}`);
+      return;
+    }
     if (photoRef.current) photoRef.current.value = '';
   };
 
@@ -366,7 +371,7 @@ export function Inspector({
                     <Trash2 size={13} /> Quitar
                   </Button>
                 )}
-                <p className="text-[10px] text-text-faded">Máx 2 MB · JPG / PNG / WebP</p>
+                <p className="text-[10px] text-text-faded">Máx 10 MB · JPG / PNG / WebP</p>
               </div>
             </div>
           </div>
